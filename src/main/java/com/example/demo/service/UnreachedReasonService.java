@@ -50,4 +50,13 @@ public class UnreachedReasonService {
     public UnreachedReason getReasonById(Long id) {
         return unreachedReasonMapper.selectById(id);
     }
+
+    public long count() {
+        return unreachedReasonMapper.count();
+    }
+
+    public List<UnreachedReason> findPage(int pageSize, int pageNum) {
+        int offset = (pageNum - 1) * pageSize;
+        return unreachedReasonMapper.findPage(pageSize, offset);
+    }
 } 

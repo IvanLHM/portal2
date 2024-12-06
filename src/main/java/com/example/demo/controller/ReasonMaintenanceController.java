@@ -9,6 +9,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -36,7 +37,7 @@ public class ReasonMaintenanceController {
         
         // 获取总记录数和分页数据
         long total = unreachedReasonService.count();
-        var data = unreachedReasonService.findPage(length, pageNum);
+        List<UnreachedReason> data = unreachedReasonService.findPage(length, pageNum);
         
         // 构造 DataTable 需要的响应格式
         Map<String, Object> response = new HashMap<>();

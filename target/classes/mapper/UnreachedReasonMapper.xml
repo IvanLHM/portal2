@@ -46,4 +46,21 @@
     <delete id="delete">
         DELETE FROM tbl_unreached_reason WHERE id = #{id}
     </delete>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM tbl_unreached_reason
+    </select>
+
+    <select id="findPage" resultType="com.example.demo.dto.UnreachedReason">
+        SELECT 
+            id,
+            description,
+            created_time as createdTime,
+            created_by as createdBy,
+            last_modified_by as lastModifiedBy,
+            last_modified_time as lastModifiedTime
+        FROM tbl_unreached_reason
+        ORDER BY id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
 </mapper> 

@@ -13,6 +13,7 @@ import org.springframework.ui.Model;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -31,19 +32,39 @@ public class PrintReportController {
     @GetMapping("/no-sms-report")
     @ResponseBody
     public Map<String, Object> getTable1Data(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "10") Integer pageSize) {
-        PageInfo<MarginReportDTO> pageInfo = printReportService.getMarginCustomersNotInUserSnap(pageNum, pageSize);
-        return createDataTableResponse(pageInfo);
+            @RequestParam(value = "draw", defaultValue = "1") Integer draw,
+            @RequestParam(value = "start", defaultValue = "0") Integer start,
+            @RequestParam(value = "length", defaultValue = "10") Integer length) {
+        int pageNum = (start / length) + 1;
+        PageInfo<MarginReportDTO> pageInfo = printReportService.getMarginCustomersNotInUserSnap(pageNum, length);
+        Map<String, Object> response = createDataTableResponse(pageInfo);
+        response.put("draw", draw);
+        return response;
     }
 
     @GetMapping("/un-customer-report")
     @ResponseBody
     public Map<String, Object> getTable2Data(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "10") Integer pageSize) {
-        PageInfo<MarginReportDTO> pageInfo = printReportService.getUndeliverableMarginCustomers(pageNum, pageSize);
-        return createDataTableResponse(pageInfo);
+            @RequestParam(value = "draw", defaultValue = "1") Integer draw,
+            @RequestParam(value = "start", defaultValue = "0") Integer start,
+            @RequestParam(value = "length", defaultValue = "10") Integer length) {
+        int pageNum = (start / length) + 1;
+        PageInfo<MarginReportDTO> pageInfo = printReportService.getUndeliverableMarginCustomers(pageNum, length);
+        Map<String, Object> response = createDataTableResponse(pageInfo);
+        response.put("draw", draw);
+        return response;
+    }
+
+    @GetMapping("/no-sms-report/all")
+    @ResponseBody
+    public List<MarginReportDTO> getAllTable1Data() {
+        return printReportService.getAllMarginCustomersNotInUserSnap();
+    }
+
+    @GetMapping("/un-customer-report/all")
+    @ResponseBody
+    public List<MarginReportDTO> getAllTable2Data() {
+        return printReportService.getAllUndeliverableMarginCustomers();
     }
 
     @GetMapping("/export")
@@ -64,7 +85,6 @@ public class PrintReportController {
 
     private Map<String, Object> createDataTableResponse(PageInfo<?> pageInfo) {
         Map<String, Object> response = new HashMap<>();
-        response.put("draw", 1);
         response.put("recordsTotal", pageInfo.getTotal());
         response.put("recordsFiltered", pageInfo.getTotal());
         response.put("data", pageInfo.getList());

@@ -19,6 +19,10 @@ spring:
     encoding: UTF-8
     servlet:
       content-type: text/html
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:db/test_data.sql
 
 mybatis:
   configuration:

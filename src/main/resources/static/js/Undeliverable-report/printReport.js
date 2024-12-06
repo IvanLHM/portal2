@@ -139,10 +139,13 @@ class PrintReportPage extends BasePage {
     }
 
     initTables() {
-        const commonAjaxConfig = {
+        const getAjaxConfig = (tableId) => ({
             type: 'GET',
             data: function(d) {
                 return {
+                    draw: d.draw,
+                    start: d.start,
+                    length: d.length,
                     pageNum: Math.floor(d.start / d.length) + 1,
                     pageSize: d.length
                 };
@@ -151,17 +154,17 @@ class PrintReportPage extends BasePage {
                 return json.data || [];
             },
             beforeSend: function() {
-                $('.dataTables_processing').show();
+                $(`#${tableId}_wrapper .dataTables_processing`).show();
             },
             complete: function() {
-                $('.dataTables_processing').hide();
+                $(`#${tableId}_wrapper .dataTables_processing`).hide();
             }
-        };
+        });
 
         const table1Config = {
             ...PrintReportPage.#config.tableConfig,
             ajax: {
-                ...commonAjaxConfig,
+                ...getAjaxConfig('table1'),
                 url: '/print-report/no-sms-report'
             },
             columns: [
@@ -173,7 +176,7 @@ class PrintReportPage extends BasePage {
         const table2Config = {
             ...PrintReportPage.#config.tableConfig,
             ajax: {
-                ...commonAjaxConfig,
+                ...getAjaxConfig('table2'),
                 url: '/print-report/un-customer-report'
             },
             columns: [
@@ -205,8 +208,8 @@ class PrintReportPage extends BasePage {
 
             // 获取所有数据
             const [table1Data, table2Data] = await Promise.all([
-                fetch('/print-report/no-sms-report?pageSize=999999').then(res => res.json()),
-                fetch('/print-report/un-customer-report?pageSize=999999').then(res => res.json())
+                fetch('/print-report/no-sms-report/all').then(res => res.json()),
+                fetch('/print-report/un-customer-report/all').then(res => res.json())
             ]);
 
             const printWindow = window.open('', '_blank');
@@ -218,8 +221,8 @@ class PrintReportPage extends BasePage {
                         ${this.getPrintStyles()}
                     </head>
                     <body>
-                        ${this.getPrintTableTemplate('Margin Customers Not in User Snap', table1Data.data, ['Securities Account', 'Account Name'])}
-                        ${this.getPrintTableTemplate('Undeliverable Margin Customers', table2Data.data, ['Securities Account', 'User No', 'Account Name', 'Phone Number'])}
+                        ${this.getPrintTableTemplate('Margin Customers Not in User Snap', table1Data, ['Securities Account', 'Account Name'])}
+                        ${this.getPrintTableTemplate('Undeliverable Margin Customers', table2Data, ['Securities Account', 'User No', 'Account Name', 'Phone Number'])}
                     </body>
                 </html>
             `);
