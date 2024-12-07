@@ -1,119 +1,44 @@
-class PrintReportPage extends BasePage {
-    // 私有配置
-    static #config = {
-        tableConfig: {
-            searching: false,
-            ordering: false,
-            lengthChange: true,
-            autoWidth: false,
-            pageLength: 10,
-            lengthMenu: [[10, 25, 50], [10, 25, 50]],
-            processing: true,
-            serverSide: true,
-            dom: '<"row"<"col-sm-12"tr>><"row"<"col-sm-12 col-md-5"l><"col-sm-12 col-md-7"p>>',
-            className: 'table table-hover table-bordered',
-            columnDefs: [{
-                targets: '_all',
-                className: 'align-middle'
-            }],
-            drawCallback: function() {
-                $(this).find('.dataTables_processing').hide();
-            },
-            language: {
-                emptyTable: "No data available",
-                processing: "Loading...",
-                zeroRecords: "No matching records found"
-            }
-        }
-    };
-
-    // 私有选择器
-    static #selectors = {
-        sections: {
-            welcome: '#welcome-section',
-            report: '#report-section'
-        },
-        buttons: {
-            generate: '#generateBtn',
-            back: '#backBtn',
-            print: '#printBtn',
-            export: '#exportBtn'
-        },
-        tables: {
-            table1: '#table1',
-            table2: '#table2'
-        }
-    };
-
+class PrintReport extends BasePage {
     constructor() {
         super();
-        this.container = document.querySelector('.content-wrapper');
-        this.elements = this.initElements();
-        this.tables = {
-            table1: null,
-            table2: null
+        this.elements = {
+            buttons: {
+                generate: $('#generateBtn'),
+                back: $('#backBtn'),
+                print: $('#printBtn'),
+                export: $('#exportBtn')
+            },
+            sections: {
+                welcome: $('#welcome-section'),
+                report: $('#report-section')
+            },
+            tables: {
+                noSms: {
+                    element: $('#noSmsTable'),
+                    instance: null
+                },
+                unCustomer: {
+                    element: $('#unCustomerTable'),
+                    instance: null
+                }
+            }
         };
         this.bindEvents();
     }
 
-    // 使用代理模式初始化元素
-    initElements() {
-        const cache = new Map();
-
-        const createProxy = (path = '') => {
-            return new Proxy({}, {
-                get: (target, prop) => {
-                    const fullPath = path ? `${path}.${prop}` : prop;
-                    
-                    if (cache.has(fullPath)) {
-                        return cache.get(fullPath);
-                    }
-
-                    const selector = this.getSelector(fullPath);
-                    if (!selector) return undefined;
-
-                    if (typeof selector === 'object') {
-                        const nestedProxy = createProxy(fullPath);
-                        cache.set(fullPath, nestedProxy);
-                        return nestedProxy;
-                    }
-
-                    const element = this.container.querySelector(selector);
-                    cache.set(fullPath, element);
-                    return element;
-                }
-            });
-        };
-
-        return createProxy();
-    }
-
-    getSelector(path) {
-        const parts = path.split('.');
-        let current = PrintReportPage.#selectors;
-
-        for (const part of parts) {
-            if (!current || typeof current !== 'object') {
-                return null;
-            }
-            current = current[part];
-        }
-
-        return current;
-    }
-
     bindEvents() {
-        this.elements.buttons?.generate?.addEventListener('click', () => this.generateReport());
-        this.elements.buttons?.print?.addEventListener('click', () => this.printAllTables());
-        this.elements.buttons?.export?.addEventListener('click', () => this.exportAllTables());
-        this.elements.buttons?.back?.addEventListener('click', () => this.backToWelcome());
+        const { buttons } = this.elements;
+        buttons.generate.on('click', () => this.generateReport());
+        buttons.back.on('click', () => this.backToWelcome());
+        buttons.print.on('click', () => this.printAllTables());
+        buttons.export.on('click', () => this.exportAllTables());
     }
 
     async generateReport() {
         try {
-            const button = this.elements.buttons.generate;
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...';
+            const { generate } = this.elements.buttons;
+            generate.prop('disabled', true)
+                .html('<i class="fas fa-spinner fa-spin mr-2"></i>Generating...');
 
             this.initTables();
             this.toggleView(true);
@@ -122,98 +47,133 @@ class PrintReportPage extends BasePage {
             console.error('Failed to generate report:', error);
             this.showMessage('Failed to generate report: ' + error.message, 'error');
         } finally {
-            const button = this.elements.buttons.generate;
-            button.disabled = false;
-            button.innerHTML = '<i class="fas fa-file-alt mr-2"></i>Generate Report';
+            const { generate } = this.elements.buttons;
+            generate.prop('disabled', false)
+                .html('<i class="fas fa-file-alt mr-2"></i>Generate Report');
         }
     }
 
     toggleView(showReport) {
+        const { welcome, report } = this.elements.sections;
         if (showReport) {
-            this.elements.sections.welcome.style.display = 'none';
-            this.elements.sections.report.style.display = 'block';
+            welcome.hide();
+            report.show();
         } else {
-            this.elements.sections.welcome.style.removeProperty('display');
-            this.elements.sections.report.style.display = 'none';
+            welcome.show();
+            report.hide();
         }
     }
 
     initTables() {
-        const getAjaxConfig = (tableId) => ({
-            type: 'GET',
-            data: function(d) {
-                return {
+        const commonConfig = {
+            serverSide: true,
+            processing: true,
+            searching: false,
+            ordering: false,
+            autoWidth: false,
+            pageLength: 10,
+            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
+            dom: "<'row'<'col-sm-12'tr>><'row'<'col-sm-12 col-md-5'l><'col-sm-12 col-md-7'p>>",
+            language: {
+                emptyTable: "No data available",
+                processing: "Loading...",
+                zeroRecords: "No matching records found"
+            }
+        };
+
+        // Initialize No SMS Report table
+        this.elements.tables.noSms.instance = this.elements.tables.noSms.element.DataTable({
+            ...commonConfig,
+            ajax: {
+                url: '/print-report/no-sms-report',
+                method: 'GET',
+                data: (d) => ({
                     draw: d.draw,
                     start: d.start,
-                    length: d.length,
-                    pageNum: Math.floor(d.start / d.length) + 1,
-                    pageSize: d.length
-                };
+                    length: d.length
+                }),
+                dataFilter: function(data) {
+                    let json = JSON.parse(data);
+                    return JSON.stringify({
+                        draw: json.draw || 1,
+                        recordsTotal: json.total || 0,
+                        recordsFiltered: json.total || 0,
+                        data: json.list || []
+                    });
+                }
             },
-            dataSrc: function(json) {
-                return json.data || [];
-            },
-            beforeSend: function() {
-                $(`#${tableId}_wrapper .dataTables_processing`).show();
-            },
-            complete: function() {
-                $(`#${tableId}_wrapper .dataTables_processing`).hide();
-            }
+            columns: [
+                { data: 'secAccNo', title: 'Securities Account' },
+                { data: 'secAccName', title: 'Account Name' }
+            ]
         });
 
-        const table1Config = {
-            ...PrintReportPage.#config.tableConfig,
+        // Initialize Undeliverable Customer Report table
+        this.elements.tables.unCustomer.instance = this.elements.tables.unCustomer.element.DataTable({
+            ...commonConfig,
             ajax: {
-                ...getAjaxConfig('table1'),
-                url: '/print-report/no-sms-report'
+                url: '/print-report/un-customer-report',
+                method: 'GET',
+                data: (d) => ({
+                    draw: d.draw,
+                    start: d.start,
+                    length: d.length
+                }),
+                dataFilter: function(data) {
+                    let json = JSON.parse(data);
+                    return JSON.stringify({
+                        draw: json.draw || 1,
+                        recordsTotal: json.total || 0,
+                        recordsFiltered: json.total || 0,
+                        data: json.list || []
+                    });
+                }
             },
             columns: [
-                { data: 'secAccNo' },
-                { data: 'secAccName' }
+                { data: 'secAccNo', title: 'Securities Account' },
+                { data: 'userNo', title: 'User No' },
+                { data: 'secAccName', title: 'Account Name' },
+                { data: 'telNo', title: 'Phone Number' }
             ]
-        };
-
-        const table2Config = {
-            ...PrintReportPage.#config.tableConfig,
-            ajax: {
-                ...getAjaxConfig('table2'),
-                url: '/print-report/un-customer-report'
-            },
-            columns: [
-                { data: 'secAccNo' },
-                { data: 'userNo' },
-                { data: 'secAccName' },
-                { data: 'telNo' }
-            ]
-        };
-
-        this.tables.table1 = $(this.elements.tables.table1).DataTable(table1Config);
-        this.tables.table2 = $(this.elements.tables.table2).DataTable(table2Config);
+        });
     }
 
     backToWelcome() {
-        Object.values(this.tables).forEach(table => {
-            if (table) {
-                table.clear().destroy();
+        Object.values(this.elements.tables).forEach(table => {
+            if (table.instance) {
+                table.instance.clear().destroy();
+                table.instance = null;
             }
         });
-        this.tables = { table1: null, table2: null };
         this.toggleView(false);
     }
 
     async printAllTables() {
         try {
-            // 显示加载提示
             this.showMessage('Preparing data for printing...', 'info');
 
-            // 获取所有数据
-            const [table1Data, table2Data] = await Promise.all([
-                fetch('/print-report/no-sms-report/all').then(res => res.json()),
-                fetch('/print-report/un-customer-report/all').then(res => res.json())
+            // 获取完整数据
+            const [noSmsResponse, unCustomerResponse] = await Promise.all([
+                fetch('/print-report/no-sms-report/all'),
+                fetch('/print-report/un-customer-report/all')
             ]);
 
+            if (!noSmsResponse.ok || !unCustomerResponse.ok) {
+                throw new Error('Failed to fetch print data');
+            }
+
+            const noSmsData = await noSmsResponse.json();
+            const unCustomerData = await unCustomerResponse.json();
+
+            console.log('Print data:', { noSmsData, unCustomerData });
+
             const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                throw new Error('Pop-up blocked. Please allow pop-ups for printing.');
+            }
+
             printWindow.document.write(`
+                <!DOCTYPE html>
                 <html>
                     <head>
                         <title>Margin Report</title>
@@ -221,41 +181,30 @@ class PrintReportPage extends BasePage {
                         ${this.getPrintStyles()}
                     </head>
                     <body>
-                        ${this.getPrintTableTemplate('Margin Customers Not in User Snap', table1Data, ['Securities Account', 'Account Name'])}
-                        ${this.getPrintTableTemplate('Undeliverable Margin Customers', table2Data, ['Securities Account', 'User No', 'Account Name', 'Phone Number'])}
+                        <div class="container">
+                            ${this.getPrintTableTemplate('Margin Customers Not in User Snap', noSmsData, ['Securities Account', 'Account Name'])}
+                            ${this.getPrintTableTemplate('Undeliverable Margin Customers', unCustomerData, ['Securities Account', 'User No', 'Account Name', 'Phone Number'])}
+                        </div>
                     </body>
                 </html>
             `);
             printWindow.document.close();
             
-            setTimeout(() => {
-                printWindow.print();
-                this.showMessage('Print prepared successfully', 'success');
-            }, 500);
+            printWindow.onload = () => {
+                setTimeout(() => {
+                    printWindow.print();
+                    this.showMessage('Print prepared successfully', 'success');
+                }, 500);
+            };
 
         } catch (error) {
             console.error('Print error:', error);
-            this.showMessage('Failed to prepare print data', 'error');
+            this.showMessage('Failed to prepare print data: ' + error.message, 'error');
         }
     }
 
     getPrintTableTemplate(title, data, headers) {
-        const getRowHtml = (item) => {
-            if (headers.length === 2) {
-                return `<tr>
-                    <td>${item.secAccNo || ''}</td>
-                    <td>${item.secAccName || ''}</td>
-                </tr>`;
-            } else {
-                return `<tr>
-                    <td>${item.secAccNo || ''}</td>
-                    <td>${item.userNo || ''}</td>
-                    <td>${item.secAccName || ''}</td>
-                    <td>${item.telNo || ''}</td>
-                </tr>`;
-            }
-        };
-
+        const rows = Array.isArray(data) ? data : (data?.list || []);
         return `
             <div class="card">
                 <div class="card-header">
@@ -269,12 +218,29 @@ class PrintReportPage extends BasePage {
                             </tr>
                         </thead>
                         <tbody>
-                            ${data.map(getRowHtml).join('')}
+                            ${rows.map(item => `
+                                <tr>
+                                    ${headers.map(header => {
+                                        const field = this.getFieldNameFromHeader(header);
+                                        return `<td>${item[field] || ''}</td>`;
+                                    }).join('')}
+                                </tr>
+                            `).join('')}
                         </tbody>
                     </table>
                 </div>
             </div>
         `;
+    }
+
+    getFieldNameFromHeader(header) {
+        const fieldMap = {
+            'Securities Account': 'secAccNo',
+            'Account Name': 'secAccName',
+            'User No': 'userNo',
+            'Phone Number': 'telNo'
+        };
+        return fieldMap[header];
     }
 
     getPrintStyles() {
@@ -284,6 +250,13 @@ class PrintReportPage extends BasePage {
                     body { 
                         padding: 20px; 
                         font-family: 'Source Sans Pro', sans-serif;
+                    }
+                    .container {
+                        width: 100%;
+                        padding-right: 15px;
+                        padding-left: 15px;
+                        margin-right: auto;
+                        margin-left: auto;
                     }
                     .card { 
                         margin-bottom: 2rem; 
@@ -340,22 +313,19 @@ class PrintReportPage extends BasePage {
         try {
             this.showMessage('Preparing data for export...', 'info');
             
-            // 调用后端导出API
             const response = await fetch('/print-report/export', {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/octet-stream'
                 }
             });
-            
+
             if (!response.ok) {
                 throw new Error('Export failed');
             }
 
-            // 获取文件名
             const filename = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'margin_report.xlsx';
             
-            // 下载文件
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -374,6 +344,7 @@ class PrintReportPage extends BasePage {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    window.printReport = new PrintReportPage();
+// Initialize when DOM is ready
+$(document).ready(() => {
+    window.printReport = new PrintReport();
 }); 

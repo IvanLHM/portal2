@@ -1,28 +1,23 @@
 /**
- * 导入页面类
+ * Import page class
  */
 class ImportPage extends BasePage {
-    // 私有选择器配置
-    static #selectors = {
-        generate: {
-            dateInput: '#dateInput',
-            button: '#generateBtn',
-            result: '#generateResult',
-            stats: {
-                date: '#generateDate',
-                totalRecords: '#generateTotalRecords',
-                status: '#generateStatus',
+    // Selector configurations
+    static selectors = {
+        form: '#generateForm',
+        dateInput: '#dateInput',
+        generateBtn: '#generateBtn',
+        fileInput: '#fileInput',
+        uploadForm: '#uploadForm',
+        generateResult: '#generateResult',
+        uploadResult: '#uploadResult',
+        stats: {
+            generate: {
+                total: '#generateTotalRecords',
                 time: '#generateTime'
-            }
-        },
-        upload: {
-            form: '#uploadForm',
-            fileInput: '#fileInput',
-            result: '#uploadResult',
-            stats: {
-                date: '#uploadDate',
-                totalRecords: '#uploadTotalRecords',
-                status: '#uploadStatus',
+            },
+            upload: {
+                total: '#uploadTotalRecords',
                 time: '#uploadTime'
             }
         }
@@ -30,260 +25,149 @@ class ImportPage extends BasePage {
 
     constructor() {
         super();
-        this.container = document.querySelector('.content-wrapper');
-        this.elements = this.initElements();
         this.initDatePicker();
         this.initFileUpload();
-        this.debouncedGenerate = this.debounce(this.generateData.bind(this), 300);
         this.bindEvents();
     }
 
-    // 使用代理模式初始化元素
-    initElements() {
-        const cache = new Map();
+    bindEvents() {
+        // Generate report event
+        $(ImportPage.selectors.generateBtn).on('click', () => this.handleGenerate());
 
-        const createProxy = (path = '') => {
-            return new Proxy({}, {
-                get: (target, prop) => {
-                    const fullPath = path ? `${path}.${prop}` : prop;
-                    
-                    // 如果已经缓存了元素，直接返回
-                    if (cache.has(fullPath)) {
-                        return cache.get(fullPath);
-                    }
-
-                    // 获取选择器
-                    const selector = this.getSelector(fullPath);
-                    if (!selector) return undefined;
-
-                    // 如果是对象，返回新的代理
-                    if (typeof selector === 'object') {
-                        const nestedProxy = createProxy(fullPath);
-                        cache.set(fullPath, nestedProxy);
-                        return nestedProxy;
-                    }
-
-                    // 查找并缓存元素
-                    const element = this.container.querySelector(selector);
-                    cache.set(fullPath, element);
-                    return element;
-                }
-            });
-        };
-
-        return createProxy();
-    }
-
-    // 获取选择器
-    getSelector(path) {
-        const parts = path.split('.');
-        let current = ImportPage.#selectors;
-
-        for (const part of parts) {
-            if (!current || typeof current !== 'object') {
-                return null;
-            }
-            current = current[part];
-        }
-
-        return current;
+        // File upload event
+        $(ImportPage.selectors.uploadForm).on('submit', (e) => {
+            e.preventDefault();
+            this.handleUpload();
+        });
     }
 
     initDatePicker() {
+        const { dateInput } = ImportPage.selectors;
         const yesterday = moment().subtract(1, 'days');
-        const minDate = moment().subtract(30, 'days');
+        const minDate = moment().subtract(1, 'months');
         
         laydate.render({
-            elem: this.elements.generate.dateInput,
+            elem: dateInput,
             type: 'date',
-            format: 'yyyy-MM-dd',
+            trigger: 'click',
+            lang: 'en',
             value: yesterday.format('YYYY-MM-DD'),
             min: minDate.format('YYYY-MM-DD'),
             max: yesterday.format('YYYY-MM-DD'),
-            trigger: 'click',
-            theme: '#1890ff'
+            theme: '#1890ff',
+            btns: ['clear', 'confirm'],
+            done: (value) => {
+                if (!value) {
+                    this.showMessage('Please select a date', 'warning');
+                    return false;
+                }
+                return true;
+            }
+        });
+
+        // Add validation to date input
+        $(dateInput).on('change', () => {
+            const value = $(dateInput).val();
+            if (!value) {
+                this.showMessage('Please select a date', 'warning');
+                return false;
+            }
+            return true;
         });
     }
 
     initFileUpload() {
-        $("#fileInput").fileinput({
+        $(ImportPage.selectors.fileInput).fileinput({
             theme: 'fa5',
             language: 'en',
-            uploadUrl: '/margin-trade-limit/import',
-            allowedFileExtensions: ['txt'],
-            maxFileSize: 5000,
+            showUpload: false,
+            showPreview: false,
             showClose: false,
-            showCaption: true,
-            showBrowse: true,
-            showUpload: true,
-            showRemove: true,
-            showCancel: false,
-            browseClass: 'btn btn-primary',
-            uploadClass: 'btn btn-info',
-            removeClass: 'btn btn-danger',
-            browseLabel: 'Browse',
-            uploadLabel: 'Upload',
-            removeLabel: 'Clear',
-            browseIcon: '<i class="fas fa-folder-open"></i> ',
-            uploadIcon: '<i class="fas fa-upload"></i> ',
-            removeIcon: '<i class="fas fa-trash"></i> ',
-            uploadAsync: true,
-            minFileCount: 1,
-            maxFileCount: 1,
-            msgNoFilesSelected: 'No file selected',
-            msgFilesTooMany: 'Number of files selected for upload ({n}) exceeds maximum allowed limit of {m}.'
-        }).on('fileuploaded', (event, data) => {
-            this.showMessage('File uploaded successfully');
-            this.updateUploadStats({ 
-                file: data.files[0], 
-                response: data.response 
-            });
+            maxFileSize: 5120,
+            allowedFileExtensions: ['txt'],
+            msgInvalidFileExtension: 'Invalid file type "{name}". Only "{extensions}" files are supported.'
         });
     }
 
-    bindEvents() {
-        // 使用可选链和代理
-        this.elements.generate?.button?.addEventListener('click', () => {
-            this.debouncedGenerate(this.elements.generate.dateInput.value);
-        });
-
-        $('a[data-toggle="pill"]').on('shown.bs.tab', (e) => {
-            const targetId = $(e.target).attr('href');
-            if (targetId === '#custom-tabs-one-general') {
-                this.resetGenerateStats();
-            } else if (targetId === '#custom-tabs-one-upload') {
-                this.resetUploadStats();
-            }
-        });
-    }
-
-    resetGenerateStats() {
-        const { stats } = this.elements.generate;
-        if (stats) {
-            stats.date.textContent = '-';
-            stats.totalRecords.textContent = '-';
-            stats.status.innerHTML = '-';
-            stats.time.textContent = '-';
+    async handleGenerate() {
+        const date = $(ImportPage.selectors.dateInput).val();
+        if (!date) {
+            this.showMessage('Please select a date', 'warning');
+            return;
         }
 
-        const result = this.elements.generate.result;
-        if (result) {
-            result.style.display = 'none';
-        }
+        const $button = $(ImportPage.selectors.generateBtn);
 
-        const dateInput = this.elements.generate.dateInput;
-        if (dateInput) {
-            const yesterday = moment().subtract(1, 'days');
-            dateInput.value = yesterday.format('YYYY-MM-DD');
-        }
-    }
-
-    resetUploadStats() {
-        const { stats } = this.elements.upload;
-        if (stats) {
-            stats.date.textContent = '-';
-            stats.totalRecords.textContent = '-';
-            stats.status.innerHTML = '-';
-            stats.time.textContent = '-';
-        }
-        
-        if (this.elements.upload.result) {
-            this.elements.upload.result.style.display = 'none';
-        }
-        
-        if (this.elements.upload.form) {
-            this.elements.upload.form.reset();
-        }
-    }
-
-    // 添加防抖方法
-    debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-
-    async generateData(date) {
-        const button = this.elements.generate.button;
-        const result = this.elements.generate.result;
-        
         try {
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Generating...';
-            result.style.display = 'none';
+            $button.prop('disabled', true)
+                .html('<i class="fas fa-spinner fa-spin mr-2"></i>Generating...');
 
-            const response = await fetch('/margin-trade-limit/generate', {
+            const response = await $.ajax({
+                url: '/margin-trade-limit/generate',
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `date=${date}`
+                data: { date: date }
             });
 
-            if (!response.ok) throw await response.text();
-            
-            const data = await response.json();
-            this.showMessage('Data generated successfully');
-            this.updateGenerateStats({ date, response: data });
-            
+            this.updateGenerateStats(response);
+            $(ImportPage.selectors.generateResult).slideDown();
+            this.showMessage('Generated successfully', 'success');
         } catch (error) {
-            console.error('Generate failed:', error);
-            this.showMessage(`Failed to generate data: ${error}`, 'error');
-            this.updateGenerateStats({ 
-                date, 
-                error: error.toString(),
-                isError: true 
-            });
+            console.error('Generate error:', error);
+            this.showMessage(error.responseJSON?.message || 'Failed to generate', 'error');
         } finally {
-            button.disabled = false;
-            button.innerHTML = '<i class="fas fa-file-alt mr-1"></i> General Report';
-            result.style.display = 'block';
+            $button.prop('disabled', false)
+                .html('<i class="fas fa-file-alt mr-1"></i>Generate Report');
         }
     }
 
-    updateGenerateStats({ date, response = {}, error = '', isError = false }) {
-        const { stats } = this.elements.generate;
-        
-        stats.date.textContent = date;
-        stats.totalRecords.textContent = isError ? '0' : response.totalRecords;
-        stats.status.innerHTML = this.getStatusHtml(isError, error);
-        stats.time.textContent = new Date().toLocaleString();
+    async handleUpload() {
+        const $fileInput = $(ImportPage.selectors.fileInput);
+        if (!$fileInput[0].files.length) {
+            this.showMessage('Please select a file', 'warning');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', $fileInput[0].files[0]);
+
+        try {
+            $fileInput.fileinput('disable');
+            this.showModalLoading('Uploading...');
+
+            const response = await $.ajax({
+                url: '/margin-trade-limit/import',
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false
+            });
+
+            this.updateUploadStats(response);
+            $(ImportPage.selectors.uploadResult).slideDown();
+            this.showMessage('Upload completed successfully', 'success');
+        } catch (error) {
+            console.error('Upload error:', error);
+            this.showMessage(error.responseJSON?.message || 'Failed to upload', 'error');
+        } finally {
+            this.hideModalLoading();
+            $fileInput.fileinput('enable').fileinput('clear');
+        }
     }
 
-    updateUploadStats({ file, response = {}, error = '', isError = false }) {
-        const { stats } = this.elements.upload;
-        
-        stats.date.textContent = new Date().toLocaleDateString();
-        stats.totalRecords.textContent = isError ? '0' : response.totalRecords;
-        stats.status.innerHTML = this.getStatusHtml(isError, error);
-        stats.time.textContent = new Date().toLocaleString();
-
-        this.elements.upload.result.style.display = 'block';
+    updateGenerateStats(data) {
+        const { stats } = ImportPage.selectors;
+        $(stats.generate.total).text(data.totalRecords || '0');
+        $(stats.generate.time).text(moment().format('YYYY-MM-DD HH:mm:ss'));
     }
 
-    handleUploadError(error, file) {
-        this.showMessage(`Failed to upload file: ${error}`, 'error');
-        this.updateUploadStats({ 
-            file, 
-            error: error.toString(),
-            isError: true 
-        });
-    }
-
-    getStatusHtml(isError, errorMessage = '') {
-        return isError 
-            ? `<span class="badge badge-danger">Failed</span>
-               <small class="text-danger ml-2">${this.escapeHtml(errorMessage)}</small>`
-            : '<span class="badge badge-success">Success</span>';
+    updateUploadStats(data) {
+        const { stats } = ImportPage.selectors;
+        $(stats.upload.total).text(data.totalRecords || '0');
+        $(stats.upload.time).text(moment().format('YYYY-MM-DD HH:mm:ss'));
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize when DOM is ready
+$(document).ready(() => {
     window.importPage = new ImportPage();
 }); 

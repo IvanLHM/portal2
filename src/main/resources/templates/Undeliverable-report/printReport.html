@@ -21,7 +21,7 @@
                     <div class="welcome-card">
                         <div class="welcome-icon">
                             <i class="fas fa-chart-line fa-4x text-primary animated-icon"></i>
-                        </div>
+                            </div>
                         <h2 class="welcome-title">Print Margin Report</h2>
                         <p class="welcome-description">Generate comprehensive margin reports with just one click</p>
                         <button id="generateBtn" class="btn btn-primary btn-lg welcome-button">
@@ -118,7 +118,7 @@
                             </div>
                             <!-- /.card-header -->
                             <div class="card-body">
-                              <table id="table1" class="table table-bordered table-hover">
+                              <table id="noSmsTable" class="table table-bordered table-hover">
                                 <thead>
                                 <tr>
                                     <th>Securities Account</th>
@@ -135,44 +135,43 @@
                           <!-- /.card -->
                         </div>
                         <!-- /.col -->
-                      </div>
+                </div>
 
                     <!-- 第二个表格 -->
-                    <div class="row">
-                        <div class="col-12">
-                          <div class="card">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
                             <div class="card-header">
                               <h3 class="card-title">Undeliverable Margin Customers</h3>
                             </div>
                             <!-- /.card-header -->
                             <div class="card-body">
-                              <table id="table2" class="table table-bordered table-hover">
-                                <thead>
-                                <tr>
+                              <table id="unCustomerTable" class="table table-bordered table-hover">
+                                    <thead>
+                                        <tr>
                                     <th>Securities Account</th>
                                     <th>User No</th>
                                     <th>Account Name</th>
                                     <th>Phone Number</th>
-                                </tr>
-                                </thead>
+                                        </tr>
+                                    </thead>
                                 <tbody>
                                
                                 </tbody>
-                              </table>
+                                </table>
                             </div>
                             <!-- /.card-body -->
                           </div>
                           <!-- /.card -->
                         </div>
                         <!-- /.col -->
-                      </div>                    
+                    </div>
                 </div>
             </div>
         </section>
     </div>
 
     <!-- JS -->
-    <!-- 先加载基础库 -->
     <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap4.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/1.7.0/js/dataTables.buttons.min.js"></script>
@@ -182,12 +181,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
     <script src="https://cdn.datatables.net/buttons/1.7.0/js/buttons.html5.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/1.7.0/js/buttons.print.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
-
-    <!-- 加载基础类 -->
+    <script src="https://www.layuicdn.com/layui/layui.js"></script>
+    
+    <!-- Base JS -->
     <script th:src="@{/js/undeliverable-report/base.js}"></script>
-
-    <!-- 最后加载页面特定的JS -->
+    
+    <!-- Page JS -->
     <script th:src="@{/js/undeliverable-report/printReport.js}"></script>
 </body>
-</html> 
+</html>

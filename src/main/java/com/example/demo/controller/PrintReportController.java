@@ -12,9 +12,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Controller
 @RequestMapping("/print-report")
@@ -31,28 +29,20 @@ public class PrintReportController {
 
     @GetMapping("/no-sms-report")
     @ResponseBody
-    public Map<String, Object> getTable1Data(
-            @RequestParam(value = "draw", defaultValue = "1") Integer draw,
+    public PageInfo<MarginReportDTO> getTable1Data(
             @RequestParam(value = "start", defaultValue = "0") Integer start,
             @RequestParam(value = "length", defaultValue = "10") Integer length) {
         int pageNum = (start / length) + 1;
-        PageInfo<MarginReportDTO> pageInfo = printReportService.getMarginCustomersNotInUserSnap(pageNum, length);
-        Map<String, Object> response = createDataTableResponse(pageInfo);
-        response.put("draw", draw);
-        return response;
+        return printReportService.getMarginCustomersNotInUserSnap(pageNum, length);
     }
 
     @GetMapping("/un-customer-report")
     @ResponseBody
-    public Map<String, Object> getTable2Data(
-            @RequestParam(value = "draw", defaultValue = "1") Integer draw,
+    public PageInfo<MarginReportDTO> getTable2Data(
             @RequestParam(value = "start", defaultValue = "0") Integer start,
             @RequestParam(value = "length", defaultValue = "10") Integer length) {
         int pageNum = (start / length) + 1;
-        PageInfo<MarginReportDTO> pageInfo = printReportService.getUndeliverableMarginCustomers(pageNum, length);
-        Map<String, Object> response = createDataTableResponse(pageInfo);
-        response.put("draw", draw);
-        return response;
+        return printReportService.getUndeliverableMarginCustomers(pageNum, length);
     }
 
     @GetMapping("/no-sms-report/all")
@@ -81,13 +71,5 @@ public class PrintReportController {
                 .ok()
                 .headers(headers)
                 .body(printReportService.exportExcelReport());
-    }
-
-    private Map<String, Object> createDataTableResponse(PageInfo<?> pageInfo) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("recordsTotal", pageInfo.getTotal());
-        response.put("recordsFiltered", pageInfo.getTotal());
-        response.put("data", pageInfo.getList());
-        return response;
     }
 } 
